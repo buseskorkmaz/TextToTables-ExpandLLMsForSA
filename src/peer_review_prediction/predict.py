@@ -11,6 +11,7 @@ from typing import List, Dict, Any
 from sklearn.preprocessing import LabelEncoder
 
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from datasets import load_dataset
 import torch
 import torch.nn.functional as F
 import xgboost as xgb
@@ -50,7 +51,8 @@ class FlanT5Model:
             self.language_model_name = hf_language_model_id
             self.model = AutoModelForSeq2SeqLM.from_pretrained(hf_language_model_id)
         
-        self.model.to("cuda" if torch.cuda.is_available() else "cpu")
+        # self.model.to("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.to("mps")
         print("Using device", self.model.device)
 
     def __call__(self, title, abstract=None, introduction=None, tables=None):
@@ -67,7 +69,8 @@ class FlanT5Model:
             max_length= 4096
 
         inputs =self.tokenizer(text, return_tensors="pt", max_length=max_length, padding=True, truncation=True)
-        inputs = inputs.to("cuda" if torch.cuda.is_available() else "cpu")
+        # inputs = inputs.to("cuda" if torch.cuda.is_available() else "cpu")
+        inputs = inputs.to("mps")
         embeddings = self.model.generate(**inputs, max_new_tokens=2048)
         # print(embeddings)
         return embeddings[0]
@@ -131,9 +134,9 @@ def extract_tables(paper_title, full_text_table, table_caption):
 
 class Evaluator:
 
-    def __init__(self, language_model_name, dataset_path):
+    def __init__(self, language_model_name, dataset_path=None):
         self.language_model_name = language_model_name
-        self.model = FlanT5Model(language_model_name)
+        self.model = FlanT5Model()
         self.dataset_path = dataset_path
     
     def get_model(self, model_name):
@@ -144,72 +147,78 @@ class Evaluator:
         else:
             raise ValueError(f"Unsupported model: {model_name}")
     
-    def read_dataset(self):
-      
-        # Define the file path to the JSON file
-        base_path = Path(f'{full_dataset_path}')
+    def read_dataset(self, load_from_hf=True):
 
-        # Variable to store the loaded data
-        scigen_papers = {}
-
-        # Check if the file exists
-        if base_path.is_file():
-            with open(base_path, 'r', encoding='utf-8') as file:
-                # Load the data from the JSON file
-                scigen_papers = json.load(file)
+        if load_from_hf:
+            matched_peer_review_dataset = load_dataset("buseskorkmaz/matched_peer_review_dataset")['train']
+            full_body_dataset = load_dataset("buseskorkmaz/full_body_dataset")['train']
+            print(matched_peer_review_dataset)
+            print(full_body_dataset)
         else:
-            print(f"File not found: {base_path}")
-
-        print("First loaded sample:", scigen_papers['0']['paper'])
-
-        conferences = ['acl', 'conll', 'iclr']
-        matched_papers_titles = []
-        matched_peer_review_dataset = []
-        full_body_dataset = []
-
-        for conference in conferences:
             # Define the file path to the JSON file
-            matched_base_path = Path(f'./data/conference_papers/{conference}_matched_papers.json')
+            base_path = Path(f'{full_dataset_path}')
+
+            # Variable to store the loaded data
+            scigen_papers = {}
 
             # Check if the file exists
-            if matched_base_path.is_file():
-                with open(matched_base_path, 'r', encoding='utf-8') as file:
+            if base_path.is_file():
+                with open(base_path, 'r', encoding='utf-8') as file:
                     # Load the data from the JSON file
-                    matched_papers = json.load(file)
+                    scigen_papers = json.load(file)
             else:
-                print(f"File not found: {matched_base_path}")
+                print(f"File not found: {base_path}")
 
-            matched_papers_titles += [title.lower().replace("\\", "") for title in matched_papers]
-            subsets = ["train", "test", "dev"]
-            for subset in subsets:
-                conference_path = f"./data/{conference}/{subset}.json"
+            print("First loaded sample:", scigen_papers['0']['paper'])
+
+            conferences = ['acl', 'conll', 'iclr']
+            matched_papers_titles = []
+            matched_peer_review_dataset = []
+            full_body_dataset = []
+
+            for conference in conferences:
+                # Define the file path to the JSON file
+                matched_base_path = Path(f'./data/conference_papers/{conference}_matched_papers.json')
 
                 # Check if the file exists
-                try:
-                    with open(conference_path, 'r', encoding='utf-8') as file:
+                if matched_base_path.is_file():
+                    with open(matched_base_path, 'r', encoding='utf-8') as file:
                         # Load the data from the JSON file
-                        subset_papers = json.load(file)
-                except:
-                    print(f"File not found: {conference_path}")
+                        matched_papers = json.load(file)
+                else:
+                    print(f"File not found: {matched_base_path}")
 
-                for i in range(len(subset_papers)):
-                    if subset_papers[i]['paper_info_metadata']['title'] and subset_papers[i]['paper_info_metadata']['title'].lower().replace("\\", "") in matched_papers_titles:
-                        matched_peer_review_dataset.append(subset_papers[i])
-                
-                print("Matched review papers dataset:", len(matched_peer_review_dataset))
-                        
-        # full body dataset
-        for i in range(len(scigen_papers)):
-            if scigen_papers[str(i)]['paper'].lower().replace("\\", "") in matched_papers_titles:
-                full_body_dataset.append(scigen_papers[str(i)])
-        
-        print("Matched full body dataset:", len(full_body_dataset))
+                matched_papers_titles += [title.lower().replace("\\", "") for title in matched_papers]
+                subsets = ["train", "test", "dev"]
+                for subset in subsets:
+                    conference_path = f"./data/{conference}/{subset}.json"
+
+                    # Check if the file exists
+                    try:
+                        with open(conference_path, 'r', encoding='utf-8') as file:
+                            # Load the data from the JSON file
+                            subset_papers = json.load(file)
+                    except:
+                        print(f"File not found: {conference_path}")
+
+                    for i in range(len(subset_papers)):
+                        if subset_papers[i]['paper_info_metadata']['title'] and subset_papers[i]['paper_info_metadata']['title'].lower().replace("\\", "") in matched_papers_titles:
+                            matched_peer_review_dataset.append(subset_papers[i])
+                    
+                    print("Matched review papers dataset:", len(matched_peer_review_dataset))
+                            
+            # full body dataset
+            for i in range(len(scigen_papers)):
+                if scigen_papers[str(i)]['paper'].lower().replace("\\", "") in matched_papers_titles:
+                    full_body_dataset.append(scigen_papers[str(i)])
+            
+            print("Matched full body dataset:", len(full_body_dataset))
         return matched_peer_review_dataset, full_body_dataset 
     
     def generate_embeddings(self, abstract=False, intro=False, captions= False, tables=False):
         peer_reviews, full_text_table = self.read_dataset()
         batch_embed = []
-        embeddings_filename = f"{log_dir}/peer_review_embeddings/paper_embeddings_{self.language_model_name}_{abstract}_{intro}_{captions}_{tables}.json"
+        embeddings_filename = f"./outputs/peer_review_embeddings/paper_embeddings_{self.language_model_name}_{abstract}_{intro}_{captions}_{tables}.json"
 
         for paper in peer_reviews:
             title = paper['paper_info_metadata']['title']
@@ -238,7 +247,7 @@ class Evaluator:
                 embeddings = self.model(title, abstract=None, introduction=None, tables=None)
             # Convert embeddings to a list (or a nested list if it's multidimensional) to ensure JSON serializability
             batch_embed.append(embeddings)
-        
+            
         # Ensure embeddings are in a serializable format
         serializable_embeddings = [embed.tolist() if hasattr(embed, 'tolist') else embed for embed in batch_embed]
         with open(embeddings_filename, 'w') as f:
@@ -437,4 +446,4 @@ def evaluate_model(language_model_name, log_dir):
     return results
 
 # Evaluate both the base and the fine-tuned models
-results = evaluate_model(base_model_name)
+results = evaluate_model(base_model_name, log_dir="./outputs/logs")
