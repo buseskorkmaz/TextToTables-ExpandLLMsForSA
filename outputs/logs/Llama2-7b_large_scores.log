@@ -1,0 +1,12 @@
+METEOR, ROUGE, BLEU, and BERTScore Evaluation Results:
+Model: log-test_cl-Llama-2-7b-chat-hf-table-True.txt
+METEOR score: 0.14720689262049708
+ROUGE scores: {'rouge1': 0.1705350593478188, 'rouge2': 0.04438724370126264, 'rougeL': 0.10695708710311963, 'rougeLsum': 0.10697633132065204}
+BLEU score: 8.569860558517258
+BERTScore: 0.7824103832244873
+
+Model: log-test_other-Llama-2-7b-chat-hf-table-True.txt
+METEOR score: 0.14551938511934112
+ROUGE scores: {'rouge1': 0.1657014693854823, 'rouge2': 0.04465073638396426, 'rougeL': 0.10700136856082933, 'rougeLsum': 0.10686534599365566}
+BLEU score: 10.88226149555312
+BERTScore: 0.7831951379776001

@@ -1,0 +1,12 @@
+METEOR, ROUGE, BLEU, and BERTScore Evaluation Results:
+Model: log-test_cl-wikitable-scigen-mrs_sqa_real-table-True.txt
+METEOR score: 0.14764654334442873
+ROUGE scores: {'rouge1': 0.23961863656173554, 'rouge2': 0.05612093521876626, 'rougeL': 0.17240174919483287, 'rougeLsum': 0.1724458413415912}
+BLEU score: 59.382646558960076
+BERTScore: 0.8483228087425232
+
+Model: log-test_other-wikitable-scigen-mrs_sqa_real-table-True.txt
+METEOR score: 0.13908740634600114
+ROUGE scores: {'rouge1': 0.23317256634410288, 'rouge2': 0.05551500491355771, 'rougeL': 0.1706669188866888, 'rougeLsum': 0.17068663413863927}
+BLEU score: 60.44407583380333
+BERTScore: 0.846617579460144
